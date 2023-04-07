@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4ed370617d648f08b4bb7ee1fe620e1, type: 3}
+  m_Name: Card6
+  m_EditorClassIdentifier: 
+  CardSprite: {fileID: 21300000, guid: b9b3e2b331fac3943ba16e019c9b6838, type: 3}
+  Categories:
+  - Name: "Gef\xE4hrdung"
+    Stats: 5
+  - Name: Brandgefahr
+    Stats: 0
+  - Name: Das war knapp
+    Stats: 100
+  - Name: Alter
+    Stats: 1
+  - Name: Deppenquote
+    Stats: 100

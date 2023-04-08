@@ -1,9 +1,12 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 public class GamePlay : MonoBehaviour
 {
@@ -23,6 +26,13 @@ public class GamePlay : MonoBehaviour
 
     public int        PlayerScore, AIScore;
     public GameObject GameplayUI,  ScoreUI, TimerUI;
+
+    private bool _isJoker1Used, _isJoker2Used, _isJoker3Used;
+
+    public Button Joker1, Joker2, Joker3;
+
+    public Color DefaultColor, DisabledColor;
+
 
     private GameObject InstantiateRandomCard(int cardIndex)
     {
@@ -98,6 +108,11 @@ public class GamePlay : MonoBehaviour
             }
             else
             {
+                if (_isJoker3Used)
+                {
+                    AIbrain.SetBannedCategory(LastSelectedCategory.Name);
+                }
+
                 StartCoroutine(EndTurn(false));
             }
         }
@@ -105,6 +120,11 @@ public class GamePlay : MonoBehaviour
         {
             if (Turn)
             {
+                if (_isJoker3Used)
+                {
+                    AIbrain.SetBannedCategory(LastSelectedCategory.Name);
+                }
+
                 StartCoroutine(EndTurn(false));
             }
             else
@@ -169,6 +189,7 @@ public class GamePlay : MonoBehaviour
         GameplayUI.SetActive(false);
         ScoreUI.SetActive(false);
         TimerUI.SetActive(false);
+        HideJokerButtons();
         if (deck2.Count > deck1.Count)
         {
             EndGameText.text = "!! Player Won !!";
@@ -217,10 +238,12 @@ public class GamePlay : MonoBehaviour
         if (Turn)
         {
             TurnText.text = "Player Turn!";
+            UpdateJokerButtonsStatus();
         }
         else
         {
             TurnText.text = "AI Turn!";
+            DisableJokerButtons();
         }
 
         PlayerSelectedCard = Random.Range(0, deck2.Count);
@@ -267,6 +290,14 @@ public class GamePlay : MonoBehaviour
         }
     }
 
+    private void HideAICard()
+    {
+        deck1[AISelectedCard]
+            .transform.GetChild(0)
+            .gameObject.GetComponent<CanvasGroup>()
+            .alpha = 0;
+    }
+
     private void RevealAICard()
     {
         deck1[AISelectedCard]
@@ -281,7 +312,15 @@ public class GamePlay : MonoBehaviour
             .GetCategoryNames();
         Category category = deck1[AISelectedCard]
             .GetComponent<Card>()
-            .GetCategory(categoryNames[AIbrain.SelectCategory()]);
+            .GetCategory(AIbrain.SelectCategory(categoryNames));
+        if (AIbrain.BannedCategory != "")
+        {
+            Category bannedCategory = deck1[AISelectedCard]
+                .GetComponent<Card>()
+                .GetCategory(AIbrain.BannedCategory);
+            bannedCategory.ShowBannedCategory();
+        }
+
         category.Button.onClick.Invoke();
     }
 
@@ -310,8 +349,12 @@ public class GamePlay : MonoBehaviour
         float elapsedTime = 0f;
         while (elapsedTime <= 1f)
         {
-            elapsedTime                    += Time.deltaTime / delay;
-            rectTransform.anchoredPosition =  Vector2.Lerp(startPos, endPos, elapsedTime);
+            elapsedTime += Time.deltaTime / delay;
+            if (rectTransform)
+            {
+                rectTransform.anchoredPosition = Vector2.Lerp(startPos, endPos, elapsedTime);
+            }
+
             yield return new WaitForEndOfFrame();
         }
     }
@@ -334,11 +377,122 @@ public class GamePlay : MonoBehaviour
         AIScoreText.text     = AIScore.ToString();
         TurnText.text        = "";
         EndGameText.text     = "";
+        _isJoker1Used        = false;
+        _isJoker2Used        = false;
+        _isJoker3Used        = false;
         PlayTurn();
     }
 
     public void LoadMenuScene()
     {
+        StopAllCoroutines();
         SceneManager.LoadScene("MainScene", LoadSceneMode.Single);
+    }
+
+    public void ShowJoker()
+    {
+        if (!Turn || _isJoker2Used) return;
+        _isJoker2Used = true;
+        Joker2.GetComponent<Image>()
+            .color = DisabledColor;
+        SwitchButton?.Invoke(false);
+        RectTransform rectTransform = deck2[PlayerSelectedCard]
+            .GetComponent<RectTransform>();
+        Vector2 startPos = rectTransform.anchoredPosition;
+        Vector2 endPos   = new Vector2(startPos.x + 650f, startPos.y);
+
+        StartCoroutine(PlayCardAnimation(startPos, endPos, rectTransform, 0.15f));
+        StartCoroutine(PostShowJokerAnimation());
+    }
+
+    private void EnableCategoryButtons()
+    {
+        SwitchButton?.Invoke(true);
+    }
+
+    private IEnumerator PostShowJokerAnimation()
+    {
+        yield return new WaitForSeconds(0.15f);
+        RevealAICard();
+        yield return new WaitForSeconds(1f);
+        HideAICard();
+        RectTransform rectTransform = deck2[PlayerSelectedCard]
+            .GetComponent<RectTransform>();
+        Vector2 startPos = rectTransform.anchoredPosition;
+        Vector2 endPos   = new Vector2(startPos.x - 650f, startPos.y);
+        StartCoroutine(PlayCardAnimation(startPos, endPos, rectTransform, 0.15f));
+        Invoke(nameof(EnableCategoryButtons), 0.15f);
+    }
+
+    private void UpdateJokerButtonsStatus()
+    {
+        if (!_isJoker1Used)
+        {
+            Joker1.GetComponent<Image>()
+                .color = DefaultColor;
+            Joker1.interactable = true;
+        }
+        else
+        {
+            Joker1.GetComponent<Image>()
+                .color = DisabledColor;
+            Joker1.interactable = false;
+        }
+
+        if (!_isJoker2Used)
+        {
+            Joker2.GetComponent<Image>()
+                .color = DefaultColor;
+            Joker2.interactable = true;
+        }
+        else
+        {
+            Joker2.GetComponent<Image>()
+                .color = DisabledColor;
+            Joker2.interactable = false;
+        }
+
+        if (!_isJoker3Used)
+        {
+            Joker3.GetComponent<Image>()
+                .color = DefaultColor;
+            Joker3.interactable = true;
+        }
+        else
+        {
+            Joker3.GetComponent<Image>()
+                .color = DisabledColor;
+            Joker3.interactable = false;
+        }
+    }
+
+    private void DisableJokerButtons()
+    {
+        Joker1.GetComponent<Image>()
+            .color = DisabledColor;
+        Joker1.interactable = false;
+
+        Joker2.GetComponent<Image>()
+            .color = DisabledColor;
+        Joker2.interactable = false;
+
+        Joker3.GetComponent<Image>()
+            .color = DisabledColor;
+        Joker3.interactable = false;
+    }
+
+    private void HideJokerButtons()
+    {
+        Joker1.gameObject.SetActive(false);
+        Joker2.gameObject.SetActive(false);
+        Joker3.gameObject.SetActive(false);
+    }
+
+    public void SecondChanceJoker()
+    {
+        if (!Turn || _isJoker3Used) return;
+        _isJoker3Used = true;
+        Joker3.GetComponent<Image>()
+            .color = DisabledColor;
     }
 }

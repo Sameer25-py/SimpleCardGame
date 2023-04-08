@@ -14,6 +14,14 @@ public class Category : MonoBehaviour
 
     private Color _cachedColor;
 
+    public void ShowBannedCategory()
+    {
+        var img = GetComponent<Image>();
+        _cachedColor = img.color;
+        img.color    = Color.red;
+        Invoke(nameof(RevertColor), 1f);
+    }
+
     private void OnEnable()
     {
         SwitchButton.AddListener(OnSwitchButtonCalled);

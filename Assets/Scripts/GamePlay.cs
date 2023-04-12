@@ -28,6 +28,7 @@ public class GamePlay : MonoBehaviour
     public GameObject GameplayUI,  ScoreUI, TimerUI;
 
     private bool _isJoker1Used, _isJoker2Used, _isJoker3Used;
+    private bool _triggerJoker2WinConditionOnce = false;
 
     public Button Joker1, Joker2, Joker3;
 
@@ -113,7 +114,15 @@ public class GamePlay : MonoBehaviour
                     AIbrain.SetBannedCategory(LastSelectedCategory.Name);
                 }
 
-                StartCoroutine(EndTurn(false));
+                if (_triggerJoker2WinConditionOnce)
+                {
+                    _triggerJoker2WinConditionOnce = false;
+                    StartCoroutine(EndTurn(true));
+                }
+                else
+                {
+                    StartCoroutine(EndTurn(false));
+                }
             }
         }
         else
@@ -125,7 +134,15 @@ public class GamePlay : MonoBehaviour
                     AIbrain.SetBannedCategory(LastSelectedCategory.Name);
                 }
 
-                StartCoroutine(EndTurn(false));
+                if (_triggerJoker2WinConditionOnce)
+                {
+                    _triggerJoker2WinConditionOnce = false;
+                    StartCoroutine(EndTurn(true));
+                }
+                else
+                {
+                    StartCoroutine(EndTurn(false));
+                }
             }
             else
             {
@@ -491,7 +508,8 @@ public class GamePlay : MonoBehaviour
     public void SecondChanceJoker()
     {
         if (!Turn || _isJoker3Used) return;
-        _isJoker3Used = true;
+        _isJoker3Used                  = true;
+        _triggerJoker2WinConditionOnce = true;
         Joker3.GetComponent<Image>()
             .color = DisabledColor;
     }

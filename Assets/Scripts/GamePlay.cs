@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -23,14 +24,15 @@ public class GamePlay : MonoBehaviour
 
     private Category LastSelectedCategory;
     private Category OtherPlayerCategory;
+    private string   _aiSelectedCategoryName;
 
     public int        PlayerScore, AIScore;
     public GameObject GameplayUI,  ScoreUI, TimerUI;
 
-    private bool _isJoker1Used, _isJoker2Used, _isJoker3Used;
-    private bool _triggerJoker2WinConditionOnce = false;
-
-    public Button Joker1, Joker2, Joker3;
+    private bool   _isJoker1Used, _isJoker2Used, _isJoker3Used;
+    private bool   _isJoker3InProgress;
+    private bool   _showBannedCategoryOnce;
+    public  Button Joker1, Joker2, Joker3;
 
     public Color DefaultColor, DisabledColor;
 
@@ -103,51 +105,11 @@ public class GamePlay : MonoBehaviour
     {
         if (LastSelectedCategory.Stats > OtherPlayerCategory.Stats)
         {
-            if (Turn)
-            {
-                StartCoroutine(EndTurn(true));
-            }
-            else
-            {
-                if (_isJoker3Used)
-                {
-                    AIbrain.SetBannedCategory(LastSelectedCategory.Name);
-                }
-
-                if (_triggerJoker2WinConditionOnce)
-                {
-                    _triggerJoker2WinConditionOnce = false;
-                    StartCoroutine(EndTurn(true));
-                }
-                else
-                {
-                    StartCoroutine(EndTurn(false));
-                }
-            }
+            StartCoroutine(Turn ? EndTurn(true) : EndTurn(false));
         }
         else if (LastSelectedCategory.Stats < OtherPlayerCategory.Stats)
         {
-            if (Turn)
-            {
-                if (_isJoker3Used)
-                {
-                    AIbrain.SetBannedCategory(LastSelectedCategory.Name);
-                }
-
-                if (_triggerJoker2WinConditionOnce)
-                {
-                    _triggerJoker2WinConditionOnce = false;
-                    StartCoroutine(EndTurn(true));
-                }
-                else
-                {
-                    StartCoroutine(EndTurn(false));
-                }
-            }
-            else
-            {
-                StartCoroutine(EndTurn(true));
-            }
+            StartCoroutine(Turn ? EndTurn(false) : EndTurn(true));
         }
         else
         {
@@ -213,6 +175,7 @@ public class GamePlay : MonoBehaviour
         }
 
         UpdateScoreUI();
+        AIbrain.BannedCategory = "";
 
         if (deck1.Count is 0 || deck2.Count is 0)
         {
@@ -222,8 +185,22 @@ public class GamePlay : MonoBehaviour
         else
         {
             Turn = !Turn;
-            PlayTurn();
+            if (!_isJoker3Used && !winner)
+            {
+                Enable2ndJokerStatus();
+                StartCoroutine(WaitFor2ndJoker());
+            }
+            else
+            {
+                PlayTurn();
+            }
         }
+    }
+
+    private IEnumerator WaitFor2ndJoker()
+    {
+        yield return new WaitForSeconds(2f);
+        PlayTurn();
     }
 
     private void EndGame()
@@ -277,20 +254,45 @@ public class GamePlay : MonoBehaviour
 
     private void PlayTurn()
     {
-        if (Turn)
+        if (_isJoker3InProgress)
         {
-            TurnText.text = "Player Turn!";
-            UpdateJokerButtonsStatus();
+            _isJoker3InProgress    = false;
+            AIbrain.BannedCategory = _aiSelectedCategoryName;
+            deck2.Add(deck1[^1]);
+            deck1.Remove(deck1[^1]);
+
+            RectTransform rectTransform = deck2[^1]
+                .GetComponent<RectTransform>();
+            Vector2 startPos = new Vector2(-1000f, 0f);
+            Vector2 endPos   = new Vector2(1000f, 0f);
+            rectTransform.anchoredPosition = startPos;
+            deck2[^1]
+                .transform.GetChild(0)
+                .gameObject.GetComponent<CanvasGroup>()
+                .alpha = 1;
+            deck2[^1]
+                .SetActive(true);
+
+            StartCoroutine(PlayCardAnimation(startPos, endPos, rectTransform));
+            Invoke(nameof(PostSecondJokerEffect), 2f);
         }
         else
         {
-            TurnText.text = "AI Turn!";
-            DisableJokerButtons();
-        }
+            if (Turn)
+            {
+                TurnText.text = "Player Turn!";
+                UpdateJokerButtonsStatus();
+            }
+            else
+            {
+                TurnText.text = "AI Turn!";
+                DisableJokerButtons();
+            }
 
-        PlayerSelectedCard = Random.Range(0, deck2.Count);
-        AISelectedCard     = AIbrain.SelectCard(deck1.Count);
-        StartCoroutine(AnimateSelectedCards());
+            PlayerSelectedCard = Random.Range(0, deck2.Count);
+            AISelectedCard     = AIbrain.SelectCard(deck1.Count);
+            StartCoroutine(AnimateSelectedCards());
+        }
     }
 
     private void PostPlayTurn()
@@ -352,9 +354,10 @@ public class GamePlay : MonoBehaviour
     {
         List<string> categoryNames = Cards[0]
             .GetCategoryNames();
+        _aiSelectedCategoryName = AIbrain.SelectCategory(categoryNames);
         Category category = deck1[AISelectedCard]
             .GetComponent<Card>()
-            .GetCategory(AIbrain.SelectCategory(categoryNames));
+            .GetCategory(_aiSelectedCategoryName);
         if (AIbrain.BannedCategory != "")
         {
             Category bannedCategory = deck1[AISelectedCard]
@@ -494,6 +497,13 @@ public class GamePlay : MonoBehaviour
             Joker2.interactable = false;
         }
 
+        Joker3.GetComponent<Image>()
+            .color = DisabledColor;
+        Joker3.interactable = false;
+    }
+
+    private void Enable2ndJokerStatus()
+    {
         if (!_isJoker3Used)
         {
             Joker3.GetComponent<Image>()
@@ -506,6 +516,14 @@ public class GamePlay : MonoBehaviour
                 .color = DisabledColor;
             Joker3.interactable = false;
         }
+
+        Joker2.GetComponent<Image>()
+            .color = DisabledColor;
+        Joker2.interactable = false;
+
+        Joker1.GetComponent<Image>()
+            .color = DisabledColor;
+        Joker1.interactable = false;
     }
 
     private void DisableJokerButtons()
@@ -532,10 +550,23 @@ public class GamePlay : MonoBehaviour
 
     public void SecondChanceJoker()
     {
-        if (!Turn || _isJoker3Used) return;
-        _isJoker3Used                  = true;
-        _triggerJoker2WinConditionOnce = true;
+        if (_isJoker3Used) return;
+        _isJoker3Used           = true;
+        _isJoker3InProgress     = true;
+        _showBannedCategoryOnce = true;
         Joker3.GetComponent<Image>()
             .color = DisabledColor;
+    }
+
+    private void PostSecondJokerEffect()
+    {
+        deck2[^1]
+            .GetComponent<RectTransform>()
+            .anchoredPosition = Vector2.zero;
+        UpdateScoreUI();
+        Turn               = false;
+        TurnText.text      = "AI Turn!";
+        PlayerSelectedCard = deck2.Count -1;
+        StartCoroutine(AnimateSelectedCards());
     }
 }

@@ -101,7 +101,7 @@ public class GamePlay : MonoBehaviour
 
     private void CheckWinner()
     {
-        if (LastSelectedCategory.Stats >= OtherPlayerCategory.Stats)
+        if (LastSelectedCategory.Stats > OtherPlayerCategory.Stats)
         {
             if (Turn)
             {
@@ -123,32 +123,57 @@ public class GamePlay : MonoBehaviour
                 {
                     StartCoroutine(EndTurn(false));
                 }
+            }
+        }
+        else if (LastSelectedCategory.Stats < OtherPlayerCategory.Stats)
+        {
+            if (Turn)
+            {
+                if (_isJoker3Used)
+                {
+                    AIbrain.SetBannedCategory(LastSelectedCategory.Name);
+                }
+
+                if (_triggerJoker2WinConditionOnce)
+                {
+                    _triggerJoker2WinConditionOnce = false;
+                    StartCoroutine(EndTurn(true));
+                }
+                else
+                {
+                    StartCoroutine(EndTurn(false));
+                }
+            }
+            else
+            {
+                StartCoroutine(EndTurn(true));
             }
         }
         else
         {
-            if (Turn)
-            {
-                if (_isJoker3Used)
-                {
-                    AIbrain.SetBannedCategory(LastSelectedCategory.Name);
-                }
-
-                if (_triggerJoker2WinConditionOnce)
-                {
-                    _triggerJoker2WinConditionOnce = false;
-                    StartCoroutine(EndTurn(true));
-                }
-                else
-                {
-                    StartCoroutine(EndTurn(false));
-                }
-            }
-            else
-            {
-                StartCoroutine(EndTurn(true));
-            }
+            StartCoroutine(Draw());
         }
+    }
+
+    private IEnumerator Draw()
+    {
+        Vector2 endPos = new Vector2(1000f, 0f);
+        RectTransform rect1 = deck1[AISelectedCard]
+            .GetComponent<RectTransform>();
+        RectTransform rect2 = deck2[PlayerSelectedCard]
+            .GetComponent<RectTransform>();
+        StartCoroutine(PlayCardAnimation(rect1.anchoredPosition, -endPos, rect1, 0.25f));
+        StartCoroutine(PlayCardAnimation(rect2.anchoredPosition, endPos, rect2, 0.25f));
+        yield return new WaitForSeconds(1f);
+        deck1[AISelectedCard]
+            .SetActive(false);
+        deck2[PlayerSelectedCard]
+            .SetActive(false);
+        rect1.anchoredPosition = new Vector2();
+        rect2.anchoredPosition = new Vector2();
+
+        Turn = !Turn;
+        PlayTurn();
     }
 
     private IEnumerator EndTurn(bool winner)
